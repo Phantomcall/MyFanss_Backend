@@ -134,8 +134,13 @@ export class UsersService {
     return this.userRepository.findOneBy({ email });
   }
 
-  private findById(id: number) {
+  async findById(id: number): Promise<User | null> {
     return this.userRepository.findOneBy({ id });
+  }
+
+  async updatePassword(id: number, passwordHash: string): Promise<void> {
+    await this.userRepository.update(id, { password: passwordHash });
+    await this.invalidateUserRelatedCaches(id);
   }
 
   async getUserById(id: number): Promise<UserResponseDto> {

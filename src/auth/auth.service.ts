@@ -1,4 +1,10 @@
-import { Injectable, UnauthorizedException, InternalServerErrorException, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  InternalServerErrorException,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { SignupDto } from './dto/signup.dto';
 import { TokenService, TokenPair } from './token.service';
@@ -38,7 +44,7 @@ export class AuthService {
     }
 
     const token = crypto.randomBytes(32).toString('hex');
-    const tokenHash = await bcrypt.hash(token, 10);
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
     await this.passwordResetTokenRepository.save({
@@ -56,20 +62,13 @@ export class AuthService {
       throw new BadRequestException('Password must be at least 8 characters');
     }
 
-    const tokens = await this.passwordResetTokenRepository.find({
-      where: { tokenHash: await bcrypt.hash(token, 10) },
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const validToken = await this.passwordResetTokenRepository.findOne({
+      where: { tokenHash },
     });
 
-    if (!tokens || tokens.length === 0) {
-      throw new NotFoundException('Invalid or expired reset token');
-    }
-
-    const validToken = tokens.find(
-      t => t.expiresAt > new Date() && !t.usedAt,
-    );
-
-    if (!validToken) {
-      throw new BadRequestException('Reset token expired or already used');
+    if (!validToken || validToken.usedAt || validToken.expiresAt < new Date()) {
+      throw new BadRequestException('Invalid or expired reset token');
     }
 
     const user = await this.usersService.findById(validToken.userId);
@@ -80,13 +79,11 @@ export class AuthService {
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     await this.usersService.updatePassword(user.id, hashedPassword);
 
-    await this.passwordResetTokenRepository.update(validToken.id, { usedAt: new Date() });
+    await this.passwordResetTokenRepository.update(validToken.id, {
+      usedAt: new Date(),
+    });
 
     await this.invalidateSessionsOnPasswordChange(user.id);
-  }
-
-  private async updatePassword(userId: number, hashedPassword: string): Promise<void> {
-    await this.usersService.userRepository.update(userId, { password: hashedPassword });
   }
 
   async validateUser(
@@ -175,9 +172,9 @@ export class AuthService {
 
   async deleteSession(sessionId: string, userId: number): Promise<boolean> {
     return this.tokenService.revokeSession(sessionId, userId);
- }
+  }
 
- async invalidateSessionsOnPasswordChange(userId: number): Promise<void> {
+  async invalidateSessionsOnPasswordChange(userId: number): Promise<void> {
     await this.tokenService.revokeAllUserTokens(userId);
   }
 }

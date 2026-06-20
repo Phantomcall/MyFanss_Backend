@@ -21,8 +21,10 @@ import { AuthTokensResponseDto } from './dto/auth-tokens-response.dto';
 import { SessionResponseDto } from './dto/session-response.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
-import { ForgotPasswordResponseDto } from './dto/forgot-password-response.dto';
-import { ResetPasswordResponseDto } from './dto/reset-password-response.dto';
+import {
+  ForgotPasswordResponseDto,
+  ResetPasswordResponseDto,
+} from './dto/forgot-password-response.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { AuditService } from '../audit/audit.service';
 import { AuditAction } from '../audit/audit-action.enum';
@@ -59,13 +61,17 @@ export class AuthController {
   })
   @ApiResponse({
     status: 200,
-    description: 'If an account exists with this email, you will receive a password reset link',
+    description:
+      'If an account exists with this email, you will receive a password reset link',
     type: ForgotPasswordResponseDto,
   })
   @ApiBody({ type: ForgotPasswordDto })
   async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
     await this.authService.forgotPassword(forgotPasswordDto.email);
-    return { message: 'If an account exists with this email, you will receive a password reset link' };
+    return {
+      message:
+        'If an account exists with this email, you will receive a password reset link',
+    };
   }
 
   @Post('reset-password')

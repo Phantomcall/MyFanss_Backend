@@ -2,8 +2,10 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class ForgotPasswordResponseDto {
   @ApiProperty({
-    example: 'If an account exists with this email, you will receive a password reset link',
-    description: 'Response message explaining that reset instructions were sent',
+    example:
+      'If an account exists with this email, you will receive a password reset link',
+    description:
+      'Response message explaining that reset instructions were sent',
   })
   message: string;
 }
