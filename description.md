@@ -1,47 +1,39 @@
-# Password Reset Flow with Secure Email Tokens
+# Notification Preferences API
 
-## Overview
-Implements a secure token-based password reset flow. Users can request a password reset via email, receive a single-use time-limited token (stubbed in dev via console log), and reset their password. The endpoint never reveals whether an email exists in the system (no user enumeration).
+This pull request implements the Notification Preferences API, enabling users to control their notification preferences independently. It includes the database schema, entity mappings, REST API endpoints, user signup hooks, comprehensive unit testing, and API documentation.
 
-## Changes
+## Proposed Changes
 
-### New Files
-- `src/auth/entities/password-reset-token.entity.ts` — TypeORM entity with `id`, `userId`, `tokenHash`, `expiresAt`, `usedAt`, `createdAt`
-- `src/auth/dto/forgot-password.dto.ts` — Validates email input
-- `src/auth/dto/reset-password.dto.ts` — Validates token + new password (min 8 chars via `@MinLength`)
-- `src/auth/dto/forgot-password-response.dto.ts` — Response DTOs for both endpoints
-- `src/auth/password-reset.spec.ts` — 10 test cases covering all scenarios
-- `src/migrations/1781988836473-password-reset-token.ts` — Migration creating `password_reset_tokens` table with indexes and FK
-- `docs/password-reset.md` — Comprehensive documentation with sequence diagram
+### 1. Database Schema & Migration
+- **Entity**: Created `NotificationPreference` (`notification_preferences` table) with the following fields:
+  - `id`: Auto-generated primary key (identity).
+  - `userId`: `int` linked to the `User` entity via a one-to-one relationship (`onDelete: 'CASCADE'`). Indexed for query performance.
+  - `newSubscriber`: `boolean`, default `true`.
+  - `postFromSubscribedCreator`: `boolean`, default `true`.
+  - `securityAlerts`: `boolean`, default `true`.
+  - `marketing`: `boolean`, default `false`.
+  - `created_at` / `updated_at`: Timestamps.
+- **Migration**: Added database migration script `1769050000000-CreateNotificationPreferences.ts` with correct defaults and constraints.
 
-### Modified Files
-- `src/auth/auth.service.ts` — Added `forgotPassword()` and `resetPassword()` methods
-- `src/auth/auth.controller.ts` — Added `POST /auth/forgot-password` and `POST /auth/reset-password` endpoints
-- `src/auth/auth.module.ts` — Registered `PasswordResetToken` entity with TypeORM
-- `src/users/users.service.ts` — Made `findById()` public, added `updatePassword()` method
-- `src/migrations/appDataSource.db.ts` — Added `PasswordResetToken` entity
+### 2. REST Endpoints (`/users/me/notification-preferences`)
+- **GET**: Retrieves the authenticated user's notification preferences. If the preferences do not exist yet, they are automatically created with default values (lazy-creation).
+- **PATCH**: Supports partial updates to the notification preferences. The endpoint identifies and rejects requests containing invalid keys with a `400 Bad Request` exception.
+- Both endpoints are secured under `JwtAuthGuard` and utilize the `AuthenticatedRequest` context.
 
-### Security
-- **Tokens**: 32-byte cryptographically random, SHA-256 hashed for constant-time DB lookup
-- **Expiry**: 15-minute TTL
-- **Single-use**: `usedAt` field prevents replay
-- **No enumeration**: `forgotPassword` always returns 200
-- **Session invalidation**: All refresh tokens revoked on password change via `invalidateSessionsOnPasswordChange()`
-- **Rate limiting**: `@AuthTier()` decorator on forgot-password endpoint
+### 3. User Signup Integration Hook
+- Hooks into `UsersService.createUser` to automatically create default notification preferences immediately upon successful signup.
 
-### CI Fixes
-- Fixed prettier formatting issues in all password-reset-related files (`auth.controller.ts`, `auth.service.ts`, DTOs, entity, test file)
+### 4. Service Helper (`shouldNotify`)
+- Implemented `NotificationsService.shouldNotify(userId, eventType)` for other system modules to query if they should deliver notifications for events like:
+  - `newSubscriber`
+  - `postFromSubscribedCreator`
+  - `securityAlerts`
+  - `marketing`
+- Ensures invalid event types are rejected with a `BadRequestException`.
 
-### Test Coverage (10 tests)
-1. ✅ Generates token and saves SHA-256 hash when user exists
-2. ✅ Returns early without saving token if user does not exist (no enumeration)
-3. ✅ Throws `BadRequestException` for short password (< 8 chars)
-4. ✅ Throws `BadRequestException` if token not found
-5. ✅ Throws `BadRequestException` if token already used
-6. ✅ Throws `BadRequestException` if token expired
-7. ✅ Throws `NotFoundException` if user not found for token
-8. ✅ Successfully resets password, hashes new password, marks token used, invalidates sessions
-9. ✅ Controller `forgotPassword` returns 200 with correct message
-10. ✅ Controller `resetPassword` returns 200 with success message
+### 5. Code Quality & Testing
+- Added comprehensive unit tests in `notifications.service.spec.ts` and `notifications.controller.spec.ts`.
+- Cleaned up unused imports/variables and corrected TypeScript/ESLint warnings (e.g., resolving `unbound-method` errors and adding type assertions for mock requests/arguments).
+- Formatted the codebase utilizing Prettier.
 
-closes #23
+closes #29
