@@ -10,6 +10,7 @@ import {
   Req,
   NotFoundException,
   HttpCode,
+  BadRequestException,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { AuthService } from './auth.service';
@@ -18,6 +19,12 @@ import { SignupDto } from './dto/signup.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { AuthTokensResponseDto } from './dto/auth-tokens-response.dto';
 import { SessionResponseDto } from './dto/session-response.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import {
+  ForgotPasswordResponseDto,
+  ResetPasswordResponseDto,
+} from './dto/forgot-password-response.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { AuditService } from '../audit/audit.service';
 import { AuditAction } from '../audit/audit-action.enum';
@@ -45,6 +52,50 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly auditService: AuditService,
   ) {}
+
+  @Post('forgot-password')
+  @HttpCode(200)
+  @AuthTier()
+  @ApiOperation({
+    summary: 'Request password reset - always returns 200, no user enumeration',
+  })
+  @ApiResponse({
+    status: 200,
+    description:
+      'If an account exists with this email, you will receive a password reset link',
+    type: ForgotPasswordResponseDto,
+  })
+  @ApiBody({ type: ForgotPasswordDto })
+  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
+    await this.authService.forgotPassword(forgotPasswordDto.email);
+    return {
+      message:
+        'If an account exists with this email, you will receive a password reset link',
+    };
+  }
+
+  @Post('reset-password')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Reset password with token - replaces old password entirely',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Password has been reset successfully',
+    type: ResetPasswordResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid or expired reset token',
+  })
+  @ApiBody({ type: ResetPasswordDto })
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+    await this.authService.resetPassword(
+      resetPasswordDto.token,
+      resetPasswordDto.newPassword,
+    );
+    return { message: 'Password has been reset successfully' };
+  }
 
   @Post('signup')
   @AuthTier()
