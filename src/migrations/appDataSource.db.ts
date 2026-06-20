@@ -6,6 +6,7 @@ import { AuditLog } from 'src/audit/audit.entity';
 import { Post } from 'src/posts/post.entity';
 import { NotificationPreference } from 'src/notifications/notification-preference.entity';
 import { CreatorProfile } from 'src/creators/creator-profile.entity';
+import { PasswordResetToken } from 'src/auth/entities/password-reset-token.entity';
 import { DataSourceOptions } from 'typeorm';
 
 export function dataOption(configService: ConfigService): DataSourceOptions {
@@ -24,6 +25,7 @@ export function dataOption(configService: ConfigService): DataSourceOptions {
       Post,
       NotificationPreference,
       CreatorProfile,
+      PasswordResetToken,
     ],
     synchronize: true,
   };
